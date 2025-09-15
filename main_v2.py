@@ -17,9 +17,10 @@ from dotenv import load_dotenv
 # Add packages to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'packages'))
 
-from utils.supabase_client import create_supabase_client, SupabaseClient
-from utils.ingestion_service import create_ingestion_service, IngestionService
-from utils.smart_retriever import create_smart_retriever, SmartRetriever
+from packages.utils.supabase_client import create_supabase_client, SupabaseClient
+from packages.utils.doc_processor import DocProcessor
+from packages.utils.ingestion_service import create_ingestion_service, IngestionService
+from packages.utils.smart_retriever import create_smart_retriever, SmartRetriever
 
 # Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'deploy', 'personal', '.env')
