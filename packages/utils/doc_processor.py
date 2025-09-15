@@ -13,7 +13,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-import boto3
+# import boto3  # Removed - using Supabase storage instead of AWS S3
 import os
 import io
 import base64
@@ -827,28 +827,20 @@ Focus on how it relates to the surrounding content. Be concise but comprehensive
 
 
 def create_doc_processor(mock_s3_mode: bool = False, enable_visual_ai: bool = False) -> DocProcessor:
-    """Factory function to create DocProcessor with appropriate S3 client and OpenAI client."""
+    """Factory function to create DocProcessor with OpenAI client. S3 functionality removed."""
     openai_client = None
     
-    if enable_visual_ai:
-        try:
+    # Initialize OpenAI client if API key is available
+    try:
+        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        if openai_api_key:
             import openai
-            openai_client = openai.OpenAI(
-                api_key=os.environ.get("OPENAI_API_KEY")
-            )
-        except ImportError:
-            print("Warning: OpenAI library not available for visual AI processing")
-        except Exception as e:
+            openai_client = openai.OpenAI(api_key=openai_api_key)
+        else:
+            print("Warning: OPENAI_API_KEY not found in environment variables")
+    except Exception as e:
+        if enable_visual_ai:
             print(f"Warning: Failed to initialize OpenAI client: {e}")
     
-    if mock_s3_mode:
-        return DocProcessor(s3_client=None, enable_visual_ai=enable_visual_ai, openai_client=openai_client)
-    
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.environ.get("AWS_REGION")
-    )
-    
-    return DocProcessor(s3_client=s3_client, enable_visual_ai=enable_visual_ai, openai_client=openai_client)
+    # Always return DocProcessor without S3 client since we use Supabase storage
+    return DocProcessor(s3_client=None, enable_visual_ai=enable_visual_ai, openai_client=openai_client)
