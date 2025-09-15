@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import json
 
-import asyncpg
+# import asyncpg  # Disabled for Python 3.13 compatibility
 from supabase import create_client, Client
 import openai
 

@@ -8,4 +8,3 @@ pillow>=11.0.0
 python-multipart==0.0.6
 pydantic>=2.8.0
 httpx>=0.24.0,<0.25.0
-asyncpg==0.29.0
