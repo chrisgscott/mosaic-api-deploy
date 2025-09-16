@@ -266,6 +266,31 @@ async def test_bm25_search(
         print(f"BM25 search error details: {error_details}")
         raise HTTPException(status_code=500, detail=error_details)
 
+@app.get("/v2/test/query-transform", tags=["Testing"])
+async def test_query_transformation(
+    query: str,
+    num_variants: int = 3,
+    smart_retriever: SmartRetriever = Depends(get_smart_retriever)
+):
+    """Test query transformation functionality."""
+    try:
+        variants = await smart_retriever.query_transformer.transform_query(query, num_variants)
+        return {
+            "original_query": query,
+            "variants": variants,
+            "variant_count": len(variants),
+            "status": "success"
+        }
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "query": query
+        }
+        print(f"Query transformation error: {error_details}")
+        raise HTTPException(status_code=500, detail=error_details)
+
 @app.delete("/v2/documents/{document_id}", tags=["Documents"])
 async def delete_document(
     document_id: str,
