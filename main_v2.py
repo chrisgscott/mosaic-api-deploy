@@ -100,7 +100,7 @@ async def health_check():
 @app.post("/v2/documents", response_model=DocumentUploadResponse, tags=["Documents"])
 async def upload_document(
     file: UploadFile = File(...),
-    tenant_id: str = "default",
+    tenant_id: str = "00000000-0000-0000-0000-000000000001",
     force_premium: bool = False,
     ingestion_service: IngestionService = Depends(get_ingestion_service)
 ):
