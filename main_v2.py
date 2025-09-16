@@ -97,6 +97,95 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.post("/v2/setup-database", tags=["Admin"])
+async def setup_database(supabase_client: SupabaseClient = Depends(get_supabase_client)):
+    """Create the missing database search functions."""
+    try:
+        # Vector search function
+        vector_search_sql = """
+        CREATE OR REPLACE FUNCTION vector_search(
+            query_embedding vector(1536),
+            search_tenant_id uuid,
+            search_limit integer DEFAULT 10
+        )
+        RETURNS TABLE (
+            id uuid,
+            document_id uuid,
+            content text,
+            chunk_level text,
+            chunk_index integer,
+            metadata jsonb,
+            similarity float,
+            filename text
+        ) AS $$
+        BEGIN
+            RETURN QUERY
+            SELECT 
+                c.id,
+                c.document_id,
+                c.content,
+                c.chunk_level,
+                c.chunk_index,
+                c.metadata,
+                1 - (c.embedding <=> query_embedding) as similarity,
+                d.filename
+            FROM chunks c
+            JOIN documents d ON c.document_id = d.id
+            WHERE c.tenant_id = search_tenant_id 
+                AND c.embedding IS NOT NULL
+            ORDER BY c.embedding <=> query_embedding
+            LIMIT search_limit;
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+        
+        # BM25 search function
+        bm25_search_sql = """
+        CREATE OR REPLACE FUNCTION bm25_search(
+            search_query text,
+            search_tenant_id uuid,
+            search_limit integer DEFAULT 10
+        )
+        RETURNS TABLE (
+            id uuid,
+            document_id uuid,
+            content text,
+            chunk_level text,
+            chunk_index integer,
+            metadata jsonb,
+            rank float,
+            filename text
+        ) AS $$
+        BEGIN
+            RETURN QUERY
+            SELECT 
+                c.id,
+                c.document_id,
+                c.content,
+                c.chunk_level,
+                c.chunk_index,
+                c.metadata,
+                ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', search_query)) as rank,
+                d.filename
+            FROM chunks c
+            JOIN documents d ON c.document_id = d.id
+            WHERE c.tenant_id = search_tenant_id 
+                AND to_tsvector('english', c.content) @@ plainto_tsquery('english', search_query)
+            ORDER BY ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', search_query)) DESC
+            LIMIT search_limit;
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+        
+        # Execute SQL directly using supabase client
+        supabase_client.supabase.postgrest.rpc('exec_sql', {'sql': vector_search_sql}).execute()
+        supabase_client.supabase.postgrest.rpc('exec_sql', {'sql': bm25_search_sql}).execute()
+        
+        return {"status": "success", "message": "Database functions created successfully"}
+        
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to create database functions: {str(e)}"}
+
 @app.post("/v2/documents", response_model=DocumentUploadResponse, tags=["Documents"])
 async def upload_document(
     file: UploadFile = File(...),
