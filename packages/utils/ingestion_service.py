@@ -350,7 +350,7 @@ class IngestionService:
         """Generate and store embeddings for chunks."""
         for chunk_id, chunk in zip(chunk_ids, chunks):
             try:
-                embedding = await self.supabase_client.generate_embedding(chunk.content)
+                embedding = self.supabase_client.generate_embedding(chunk.content)
                 await self.supabase_client.update_chunk_embedding(chunk_id, embedding)
             except Exception as e:
                 print(f"Warning: Failed to generate embedding for chunk {chunk_id}: {e}")

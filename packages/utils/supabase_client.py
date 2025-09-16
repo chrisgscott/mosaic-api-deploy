@@ -237,7 +237,7 @@ class SupabaseClient:
     
     # --- Embedding Operations ---
     
-    async def generate_embedding(self, text: str, model: str = "text-embedding-3-small") -> List[float]:
+    def generate_embedding(self, text: str, model: str = "text-embedding-3-small") -> List[float]:
         """Generate an embedding for the given text using OpenAI."""
         try:
             response = self.openai_client.embeddings.create(
