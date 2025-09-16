@@ -291,6 +291,53 @@ async def test_query_transformation(
         print(f"Query transformation error: {error_details}")
         raise HTTPException(status_code=500, detail=error_details)
 
+@app.get("/v2/test/smart-retrieval", tags=["Testing"])
+async def test_smart_retrieval_pipeline(
+    query: str,
+    tenant_id: str = "default",
+    use_query_transformation: bool = True,
+    use_reranking: bool = True,
+    top_k: int = 5,
+    smart_retriever: SmartRetriever = Depends(get_smart_retriever)
+):
+    """Test the complete 4-stage smart retrieval pipeline."""
+    try:
+        result = await smart_retriever.retrieve(
+            query=query,
+            tenant_id=tenant_id,
+            use_query_transformation=use_query_transformation,
+            use_hybrid_search=True,
+            use_reranking=use_reranking,
+            top_k=top_k
+        )
+        
+        return {
+            "query": query,
+            "tenant_id": tenant_id,
+            "query_variants": result.query_variants,
+            "chunks_found": len(result.chunks),
+            "chunks": result.chunks,
+            "processing_time": result.processing_time,
+            "search_metadata": result.search_metadata,
+            "pipeline_stages": {
+                "query_transformation": use_query_transformation,
+                "hybrid_search": True,
+                "rrf_fusion": True,
+                "cross_encoder_reranking": use_reranking
+            },
+            "status": "success"
+        }
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "query": query,
+            "tenant_id": tenant_id
+        }
+        print(f"Smart retrieval pipeline error: {error_details}")
+        raise HTTPException(status_code=500, detail=error_details)
+
 @app.delete("/v2/documents/{document_id}", tags=["Documents"])
 async def delete_document(
     document_id: str,
