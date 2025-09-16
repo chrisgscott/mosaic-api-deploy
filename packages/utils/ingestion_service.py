@@ -270,14 +270,11 @@ class IngestionService:
                 warnings.extend(doc_artifact.warnings)
             
             # 4. Create document record
-            document_id = await self.supabase_client.create_document_record(
+            document_id = await self.supabase_client.create_document(
                 tenant_id=tenant_id,
                 filename=filename,
-                storage_url=storage_url,
                 file_size=len(file_content),
-                mime_type=doc_artifact.metadata.get('mime_type', 'application/octet-stream'),
-                content_hash=content_hash,
-                metadata=doc_artifact.metadata
+                content_hash=content_hash
             )
             
             # 5. Determine ingestion path
