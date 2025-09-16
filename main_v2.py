@@ -250,11 +250,21 @@ async def test_bm25_search(
         results = await supabase_client.bm25_search(query, tenant_id, limit)
         return {
             "query": query,
+            "tenant_id": tenant_id,
             "results_count": len(results),
-            "results": results
+            "results": results,
+            "status": "success"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"BM25 search failed: {str(e)}")
+        import traceback
+        error_details = {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "query": query,
+            "tenant_id": tenant_id
+        }
+        print(f"BM25 search error details: {error_details}")
+        raise HTTPException(status_code=500, detail=error_details)
 
 @app.delete("/v2/documents/{document_id}", tags=["Documents"])
 async def delete_document(
