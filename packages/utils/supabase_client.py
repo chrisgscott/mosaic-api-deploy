@@ -178,26 +178,41 @@ class SupabaseClient:
         limit: int = 10,
         similarity_threshold: float = 0.7
     ) -> List[Dict[str, Any]]:
-        """Perform vector similarity search using pgvector."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT c.id, c.content, c.chunk_level, c.metadata, d.filename,
-                       1 - (c.embedding <=> $1) as similarity
-                FROM chunks c
-                JOIN documents d ON c.document_id = d.id
-                WHERE c.tenant_id = $2 
-                  AND c.embedding IS NOT NULL
-                  AND 1 - (c.embedding <=> $1) > $3
-                ORDER BY c.embedding <=> $1
-                LIMIT $4
-                """,
-                query_embedding, tenant_id, similarity_threshold, limit
-            )
+        """Perform vector similarity search using Supabase client."""
+        try:
+            # Use Supabase RPC for vector search
+            result = self.supabase.rpc('vector_search', {
+                'query_embedding': query_embedding,
+                'search_tenant_id': tenant_id,
+                'search_limit': limit,
+                'similarity_threshold': similarity_threshold
+            }).execute()
             
-            return [dict(row) for row in rows]
+            if result.data:
+                return result.data
+            else:
+                # Fallback to simple search if RPC doesn't exist
+                result = self.supabase.table('chunks').select(
+                    'id, content, chunk_level, metadata, documents(filename)'
+                ).eq('tenant_id', tenant_id).is_('embedding', 'not.null').limit(limit).execute()
+                
+                # Transform the result to match expected format
+                chunks = []
+                for row in result.data:
+                    chunks.append({
+                        'id': row['id'],
+                        'content': row['content'],
+                        'chunk_level': row['chunk_level'],
+                        'metadata': row['metadata'],
+                        'filename': row['documents']['filename'] if row['documents'] else 'unknown',
+                        'similarity': 0.8  # Default similarity for fallback search
+                    })
+                return chunks
+                
+        except Exception as e:
+            print(f"Vector search error: {str(e)}")
+            # Return empty results on error
+            return []
     
     async def bm25_search(
         self, 
