@@ -80,96 +80,78 @@ class SupabaseClient:
     
     # --- Database Operations ---
     
-    async def create_document_record(
-        self, 
-        tenant_id: str, 
-        filename: str, 
-        storage_url: str, 
-        file_size: int,
-        mime_type: str,
-        content_hash: str,
-        metadata: Dict[str, Any] = None
-    ) -> str:
-        """Create a document record in the database and return the document ID."""
-        await self.initialize_db_pool()
-        
-        # Adapt to existing schema: use doc_id, title, labels fields
-        labels = metadata or {}
-        labels.update({
-            'storage_url': storage_url,
-            'file_size': file_size,
-            'content_hash': content_hash
-        })
-        
-        async with self.db_pool.acquire() as conn:
-            document_id = await conn.fetchval(
-                """
-                INSERT INTO documents (tenant_id, title, mime_type, labels, status)
-                VALUES ($1, $2, $3, $4, 'processing')
-                RETURNING doc_id
-                """,
-                tenant_id, filename, mime_type, json.dumps(labels)
-            )
-            return str(document_id)
+    async def create_document(self, tenant_id: str, filename: str, file_size: int, content_hash: str) -> str:
+        """Create a new document record and return document ID."""
+        try:
+            # Insert document metadata using Supabase client
+            result = self.supabase.table('documents').insert({
+                'tenant_id': tenant_id,
+                'filename': filename,
+                'file_size': file_size,
+                'processing_status': 'processing',
+                'content_hash': content_hash
+            }).execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]['id']
+            else:
+                raise Exception("Failed to create document record")
+        except Exception as e:
+            print(f"Create document error: {str(e)}")
+            raise Exception(f"Failed to create document: {str(e)}")
     
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a document record by ID."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM documents WHERE doc_id = $1",
-                document_id
-            )
-            if row:
-                return dict(row)
+        try:
+            result = self.supabase.table('documents').select('*').eq('id', document_id).execute()
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            return None
+        except Exception as e:
+            print(f"Get document error: {str(e)}")
             return None
     
     async def update_document_status(self, document_id: str, status: str):
         """Update the processing status of a document."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE documents SET processing_status = $1, updated_at = NOW() WHERE id = $2",
-                status, document_id
-            )
+        try:
+            self.supabase.table('documents').update({
+                'processing_status': status,
+                'updated_at': 'NOW()'
+            }).eq('id', document_id).execute()
+        except Exception as e:
+            print(f"Update document status error: {str(e)}")
     
     async def create_chunks(self, chunks_data: List[Dict[str, Any]]) -> List[str]:
         """Create multiple chunk records and return their IDs."""
-        await self.initialize_db_pool()
-        
-        chunk_ids = []
-        async with self.db_pool.acquire() as conn:
+        try:
+            chunk_ids = []
             for chunk in chunks_data:
-                chunk_id = await conn.fetchval(
-                    """
-                    INSERT INTO chunks (document_id, tenant_id, content, embedding, chunk_level, chunk_index, parent_chunk_id, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                    RETURNING id
-                    """,
-                    chunk['document_id'],
-                    chunk['tenant_id'], 
-                    chunk['content'],
-                    chunk.get('embedding'),  # Will be None initially, filled later
-                    chunk.get('chunk_level', 'ATOMIC'),
-                    chunk.get('chunk_index', 0),
-                    chunk.get('parent_chunk_id'),
-                    json.dumps(chunk.get('metadata', {}))
-                )
-                chunk_ids.append(str(chunk_id))
-        
-        return chunk_ids
+                result = self.supabase.table('chunks').insert({
+                    'document_id': chunk.get('document_id'),
+                    'content': chunk.get('content'),
+                    'chunk_level': chunk.get('chunk_level', 'ATOMIC'),
+                    'chunk_index': chunk.get('chunk_index', 0),
+                    'parent_chunk_id': chunk.get('parent_chunk_id'),
+                    'metadata': chunk.get('metadata', {}),
+                    'tenant_id': chunk.get('tenant_id')
+                }).execute()
+                
+                if result.data and len(result.data) > 0:
+                    chunk_ids.append(result.data[0]['id'])
+            
+            return chunk_ids
+        except Exception as e:
+            print(f"Create chunks error: {str(e)}")
+            return []
     
     async def update_chunk_embedding(self, chunk_id: str, embedding: List[float]):
         """Update the embedding for a specific chunk."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE chunks SET embedding = $1 WHERE id = $2",
-                embedding, chunk_id
-            )
+        try:
+            self.supabase.table('chunks').update({
+                'embedding': embedding
+            }).eq('id', chunk_id).execute()
+        except Exception as e:
+            print(f"Update chunk embedding error: {str(e)}")
     
     async def vector_search(
         self, 
@@ -279,14 +261,14 @@ class SupabaseClient:
     
     async def check_document_exists(self, content_hash: str) -> Optional[str]:
         """Check if a document with the given content hash already exists."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            document_id = await conn.fetchval(
-                "SELECT id FROM documents WHERE content_hash = $1",
-                content_hash
-            )
-            return str(document_id) if document_id else None
+        try:
+            result = self.supabase.table('documents').select('id').eq('content_hash', content_hash).execute()
+            if result.data and len(result.data) > 0:
+                return str(result.data[0]['id'])
+            return None
+        except Exception as e:
+            print(f"Check document exists error: {str(e)}")
+            return None
 
 
 def create_supabase_client() -> SupabaseClient:
