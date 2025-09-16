@@ -238,6 +238,24 @@ async def query_documents(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
 
+@app.get("/v2/test/bm25", tags=["Testing"])
+async def test_bm25_search(
+    query: str,
+    tenant_id: str = "default",
+    limit: int = 5,
+    supabase_client: SupabaseClient = Depends(get_supabase_client)
+):
+    """Test BM25 search functionality."""
+    try:
+        results = await supabase_client.bm25_search(query, tenant_id, limit)
+        return {
+            "query": query,
+            "results_count": len(results),
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"BM25 search failed: {str(e)}")
+
 @app.delete("/v2/documents/{document_id}", tags=["Documents"])
 async def delete_document(
     document_id: str,
