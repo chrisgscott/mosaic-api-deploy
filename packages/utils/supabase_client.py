@@ -75,7 +75,7 @@ class SupabaseClient:
     
     # --- Database Operations ---
     
-    async def create_document(self, tenant_id: str, filename: str, file_size: int, content_hash: str) -> str:
+    async def create_document(self, tenant_id: str, filename: str, file_size: int, content_hash: str, storage_url: str) -> str:
         """Create a new document record and return document ID."""
         try:
             # Insert document metadata using Supabase client
@@ -83,6 +83,7 @@ class SupabaseClient:
                 'tenant_id': tenant_id,
                 'filename': filename,
                 'file_size': file_size,
+                'storage_url': storage_url,
                 'processing_status': 'processing',
                 'content_hash': content_hash
             }).execute()

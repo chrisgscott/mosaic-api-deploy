@@ -274,7 +274,8 @@ class IngestionService:
                 tenant_id=tenant_id,
                 filename=filename,
                 file_size=len(file_content),
-                content_hash=content_hash
+                content_hash=content_hash,
+                storage_url=storage_url
             )
             
             # 5. Determine ingestion path
