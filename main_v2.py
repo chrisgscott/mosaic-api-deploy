@@ -223,7 +223,7 @@ async def query_documents(
         
         # Generate answer from retrieved chunks
         if result.chunks:
-            answer = await _generate_answer(result.chunks, request.question)
+            answer = _generate_answer(result.chunks, request.question)
         else:
             answer = "I couldn't find relevant information to answer your question."
         
@@ -405,7 +405,7 @@ async def process_document_from_storage(request: dict):
 
 # --- Helper Functions ---
 
-async def _generate_answer(chunks: List[Dict[str, Any]], question: str) -> str:
+def _generate_answer(chunks: List[Dict[str, Any]], question: str) -> str:
     """Generate an answer from retrieved chunks using OpenAI."""
     try:
         # Prepare context from chunks
