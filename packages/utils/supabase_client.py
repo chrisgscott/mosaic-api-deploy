@@ -4,15 +4,12 @@ Handles both database operations (PostgreSQL + pgvector) and storage operations.
 """
 
 import os
-import hashlib
-import asyncio
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
 import json
-
-import asyncpg
-from supabase import create_client, Client
+import hashlib
+from typing import List, Dict, Any, Optional
 import openai
+from supabase import create_client, Client
+
 
 
 class SupabaseClient:
@@ -23,8 +20,11 @@ class SupabaseClient:
         self.supabase_key = supabase_key
         self.openai_client = openai.OpenAI(api_key=openai_api_key)
         
-        # Initialize Supabase client
-        self.supabase: Client = create_client(supabase_url, supabase_key)
+        # Use service role key for bypassing RLS if available
+        service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", supabase_key)
+        
+        # Initialize Supabase client with service role key
+        self.supabase: Client = create_client(supabase_url, service_role_key)
         
         # Database connection pool (for direct PostgreSQL operations)
         self.db_pool = None
