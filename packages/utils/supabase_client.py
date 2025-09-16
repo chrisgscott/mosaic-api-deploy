@@ -51,15 +51,12 @@ class SupabaseClient:
             # Create tenant-specific path
             storage_path = f"{tenant_id}/{filename}"
             
-            # Upload to Supabase Storage
-            result = self.supabase.storage.from_('documents').upload(
+            # Upload to Supabase Storage (Python client raises exceptions directly)
+            self.supabase.storage.from_('documents').upload(
                 path=storage_path,
                 file=file_content,
                 file_options={"content-type": "application/octet-stream"}
             )
-            
-            if result.error:
-                raise Exception(f"Storage upload failed: {result.error}")
             
             # Get public URL
             storage_url = self.supabase.storage.from_('documents').get_public_url(storage_path)
@@ -72,9 +69,7 @@ class SupabaseClient:
         """Download a document from Supabase Storage."""
         try:
             result = self.supabase.storage.from_('documents').download(storage_path)
-            if result.error:
-                raise Exception(f"Storage download failed: {result.error}")
-            return result.data
+            return result
         except Exception as e:
             raise Exception(f"Failed to download document: {str(e)}")
     
