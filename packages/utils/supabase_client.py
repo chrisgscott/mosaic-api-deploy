@@ -205,25 +205,42 @@ class SupabaseClient:
         tenant_id: str, 
         limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """Perform BM25 full-text search."""
-        await self.initialize_db_pool()
-        
-        async with self.db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT c.id, c.content, c.chunk_level, c.metadata, d.filename,
-                       ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $1)) as rank
-                FROM chunks c
-                JOIN documents d ON c.document_id = d.id
-                WHERE c.tenant_id = $2 
-                  AND to_tsvector('english', c.content) @@ plainto_tsquery('english', $1)
-                ORDER BY ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $1)) DESC
-                LIMIT $3
-                """,
-                query, tenant_id, limit
-            )
+        """Perform BM25 full-text search using Supabase client."""
+        try:
+            # Use Supabase RPC for full-text search
+            result = self.supabase.rpc('bm25_search', {
+                'search_query': query,
+                'search_tenant_id': tenant_id,
+                'search_limit': limit
+            }).execute()
             
-            return [dict(row) for row in rows]
+            if result.data:
+                return result.data
+            else:
+                # Fallback to simple text search if RPC doesn't exist
+                result = self.supabase.table('chunks').select(
+                    'id, content, chunk_level, metadata, documents(filename)'
+                ).eq('tenant_id', tenant_id).ilike(
+                    'content', f'%{query}%'
+                ).limit(limit).execute()
+                
+                # Transform the result to match expected format
+                chunks = []
+                for row in result.data:
+                    chunks.append({
+                        'id': row['id'],
+                        'content': row['content'],
+                        'chunk_level': row['chunk_level'],
+                        'metadata': row['metadata'],
+                        'filename': row['documents']['filename'] if row['documents'] else 'unknown',
+                        'rank': 1.0  # Default rank for fallback search
+                    })
+                return chunks
+                
+        except Exception as e:
+            print(f"BM25 search error: {str(e)}")
+            # Return empty results on error
+            return []
     
     # --- Embedding Operations ---
     
