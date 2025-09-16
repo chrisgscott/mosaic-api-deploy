@@ -161,7 +161,7 @@ class HybridSearcher:
         all_results = {}  # Use dict to deduplicate by chunk_id
         
         # Generate embedding for vector search (use first/original query)
-        query_embedding = await self.supabase_client.generate_embedding(query_variants[0])
+        query_embedding = self.supabase_client.generate_embedding(query_variants[0])
         
         for query in query_variants:
             # Run vector and BM25 searches in parallel
